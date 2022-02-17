@@ -7,51 +7,41 @@ import 'react-circular-progressbar/dist/styles.css';
 
 
 const App = () => {
-
-const [count, setCount] = React.useState(18);
-
   /*Store user's public wallet*/
   const [currentAccount, setCurrentAccount] = useState("");
   /**
   * Create a variable here that holds the contract address after you deploy!
   */
-  const contractAddress = "0x98Cad3dB3851aC11edB14eBA70faf4e1B24f246e";
+  const contractAddress = "0x857300D5aa5F533C5d9872fdFE05a9f08dbBa348";
+  const [allWaves, setAllWaves] = useState([]);
+
   /**
    * Create a variable here that references the abi content!
    */
   const contractABI = abi.abi;
+  
   const checkIfWalletIsConnected = () => {
-    const checkIfWalletIsConnected = async () => {
-      try {
-        /*
-        * First make sure we have access to window.ethereum
-        */
-        const { ethereum } = window;
+    const { ethereum } = window;
+    if (!ethereum) {
+      console.log(`Make sure you have Metamask!`);
+      return;
+    } else {
+      console.log(`We have the ethereum object`, ethereum);
+    }
 
-        if (!ethereum) {
-          console.log("Make sure you have metamask!");
-        } else {
-          console.log("We have the ethereum object", ethereum);
-        }
-
-        /* Check for authorization to access the user's wallet */
-        const accounts = await ethereum.request({ method: "eth_accounts" });
-
+    ethereum.request({ method: 'eth_accounts' })
+      .then(accounts => {
         if (accounts.length !== 0) {
           const account = accounts[0];
-          console.log("Found an authorized account : ", account);
-          setCurrentAccount(account);
-
+          console.log(`Found an authorised account : ${account}`)
+          setCurrentAccount(account)
+          getAllWaves();
+        } else {
+          console.log(`No authorised account found`)
         }
-        else {
-          console.log("No authorized account found");
-
-        }
-      } catch (error) {
-        console.log(error);
-      }
-    }
+      })
   }
+
 
   const connectWallet = async () => {
     try {
@@ -87,14 +77,13 @@ const [count, setCount] = React.useState(18);
         /* Execute the actual wave from your smart contract
         */
 
-        const waveTxn = await wavePortalContract.wave();
+        const waveTxn = await wavePortalContract.wave("Message for you");
         console.log("Mining...", waveTxn.hash);
         await waveTxn.wait();
         console.log("Mined -- ", waveTxn.hash);
 
         count = await wavePortalContract.getTotalWaves();
         console.log("Retrieved total wave count...", count.toNumber());
-        setCount(count.toNumber());
       } else {
         console.log("Ethereum object doesn't exist!");
       }
@@ -102,6 +91,42 @@ const [count, setCount] = React.useState(18);
       console.log(error);
     }
   }
+
+
+  const getAllWaves = async () => {
+     try {
+      const { ethereum } = window;
+
+      if (ethereum) {
+        const provider = new ethers.providers.Web3Provider(ethereum);
+        const signer = provider.getSigner();
+        const wavePortalContract = new ethers.Contract(contractAddress, contractABI, signer);
+
+      /* Call getAllWaves method from SC */
+      const waves = await wavePortalContract.getAllWaves();
+      setAllWaves(waves)
+    /*Address timestamp and message to be displayed on UI*/
+   let wavesCleaned = [];
+        waves.forEach(wave => {
+          wavesCleaned.push({
+            address: wave.waver,
+            timestamp: new Date(wave.timestamp * 1000),
+            message: wave.message
+          });
+        });
+    /*Storing data in React*/
+     setAllWaves(wavesCleaned);
+    console.log("test");
+      } else {
+       console.log("Ethereum object doesn't exist!")
+      }
+    } catch (error) {
+      console.log(error);
+    }
+
+    }
+
+  
   /*
   * This runs our function when the page loads.
   */
@@ -131,7 +156,15 @@ const [count, setCount] = React.useState(18);
         </button>
         <div style={{ width: 200, height: 200 }}>
       </div>
-        <div className="header"> {count} people said hi ! </div>
+        {allWaves.map((wave, index) => {
+          return (
+            <div key={index} style={{ backgroundColor: "OldLace", marginTop: "16px", padding: "8px" }}>
+              <div>Address: {wave.address}</div>
+              <div>Time: {wave.timestamp.toString()}</div>
+              <div>Message: {wave.message}</div>
+            </div>)
+        })}
+        
       </div>
 
     </div>
